@@ -10,6 +10,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@sendgrid/mail": "^8.1.5",
     "@supabase/supabase-js": "^2.55.0",
     "@types/socket.io": "^3.0.1",
     "bcryptjs": "^3.0.2",

@@ -1,5 +1,12 @@
 import { Request, Response, Router } from 'express'
 import { supabase } from '../lib/supabase'
+import { 
+  sendEmail, 
+  createSellerSummaryEmail, 
+  createBidderCongratulationsEmail, 
+  createBidderRejectionEmail,
+  createAuctionEndedBidderEmail
+} from '../lib/email'
 
 const router = Router()
 
@@ -18,11 +25,58 @@ router.get('/', async (req: Request, res: Response) => {
       .lte('start_time', nowUTC)
     
     // update active auctions to ended if end time has passed
+
+    // first, get auctions that will be ended to send emails
+    const { data: endingAuctions } = await supabase
+      .from('auctions')
+      .select(`
+        *,
+        seller:users!seller_id(id, name, email),
+        highest_bidder:users!highest_bidder_id(id, name, email)
+      `)
+      .eq('status', 'active')
+      .lte('end_time', nowUTC)
+
+    // update these auctions to ended status
     await supabase
       .from('auctions')
       .update({ status: 'ended' })
       .eq('status', 'active')
       .lte('end_time', nowUTC)
+
+    // send emails for ended auctions
+    if (endingAuctions && endingAuctions.length > 0) {
+      for (const auction of endingAuctions) {
+        try {
+          if (auction.seller?.email) {
+            // send summary email to seller
+            const sellerEmail = createSellerSummaryEmail(
+              auction.seller.name,
+              auction.title,
+              auction.current_highest_bid,
+              auction.highest_bidder?.name || null,
+              null // null means auction ended without seller decision
+            )
+            sellerEmail.to = auction.seller.email
+            await sendEmail(sellerEmail)
+          }
+
+          // if there's a highest bidder, send them a notification that auction ended
+          if (auction.highest_bidder?.email && auction.current_highest_bid) {
+            const bidderEmail = createAuctionEndedBidderEmail(
+              auction.highest_bidder.name,
+              auction.title,
+              auction.current_highest_bid,
+              auction.seller.name
+            )
+            bidderEmail.to = auction.highest_bidder.email
+            await sendEmail(bidderEmail)
+          }
+        } catch (error) {
+          console.error(`Error sending emails for ended auction ${auction.id}:`, error)
+        }
+      }
+    }
 
     // fetch list of auctions, each with seller and highest bidder details included
     let query = supabase
@@ -68,9 +122,34 @@ router.post('/', async (req: Request, res: Response) => {
       duration_hours
     } = req.body
 
-    if (!seller_id || !title || !starting_price || !bid_increment || !start_time || !duration_hours) {
+    if (!seller_id || !title || starting_price === undefined || starting_price === null || 
+        bid_increment === undefined || bid_increment === null || !start_time || 
+        duration_hours === undefined || duration_hours === null) {
       return res.status(400).json({
         error: 'Missing required fields'
+      })
+    }
+
+    // Additional validation for numeric fields
+    const startingPriceNum = parseFloat(starting_price)
+    const bidIncrementNum = parseFloat(bid_increment)
+    const durationHoursNum = parseFloat(duration_hours)
+
+    if (isNaN(startingPriceNum) || startingPriceNum < 0) {
+      return res.status(400).json({
+        error: 'Invalid starting price'
+      })
+    }
+
+    if (isNaN(bidIncrementNum) || bidIncrementNum <= 0) {
+      return res.status(400).json({
+        error: 'Invalid bid increment'
+      })
+    }
+
+    if (isNaN(durationHoursNum) || durationHoursNum <= 0) {
+      return res.status(400).json({
+        error: 'Invalid duration hours'
       })
     }
 
@@ -187,12 +266,13 @@ router.patch('/:id', async (req: Request, res: Response) => {
     }
 
     // create notification for the highest bidder
+    let notification = null
     if (data.highest_bidder_id) {
       const notificationMessage = seller_accepted 
         ? `Your bid of $${data.current_highest_bid} for "${data.title}" has been accepted!`
         : `Your bid of $${data.current_highest_bid} for "${data.title}" has been rejected.`
       
-      await supabase
+      const notificationResult = await supabase
         .from('notifications')
         .insert([{
           user_id: data.highest_bidder_id,
@@ -200,6 +280,10 @@ router.patch('/:id', async (req: Request, res: Response) => {
           type: seller_accepted ? 'bid_accepted' : 'bid_rejected',
           message: notificationMessage
         }])
+        .select()
+        .single()
+        
+      notification = notificationResult.data
     }
 
     const io = req.app.get('io')
@@ -209,6 +293,54 @@ router.patch('/:id', async (req: Request, res: Response) => {
         auction: data,
         statusChanged: true
       })
+      
+      // Emit notification event if a notification was created
+      if (notification) {
+        io.emit('new_notification', {
+          userId: data.highest_bidder_id,
+          notification: notification
+        })
+      }
+    }
+
+    // Send emails for bid acceptance/rejection
+    if (data.highest_bidder_id && data.seller && data.highest_bidder) {
+      try {
+        // Email to bidder
+        if (seller_accepted) {
+          const bidderEmail = createBidderCongratulationsEmail(
+            data.highest_bidder.name,
+            data.title,
+            data.current_highest_bid,
+            data.seller.name
+          )
+          bidderEmail.to = data.highest_bidder.email
+          await sendEmail(bidderEmail)
+        } else {
+          const bidderEmail = createBidderRejectionEmail(
+            data.highest_bidder.name,
+            data.title,
+            data.current_highest_bid,
+            data.seller.name
+          )
+          bidderEmail.to = data.highest_bidder.email
+          await sendEmail(bidderEmail)
+        }
+
+        // Email to seller (summary)
+        const sellerEmail = createSellerSummaryEmail(
+          data.seller.name,
+          data.title,
+          data.current_highest_bid,
+          data.highest_bidder.name,
+          seller_accepted
+        )
+        sellerEmail.to = data.seller.email
+        await sendEmail(sellerEmail)
+      } catch (error) {
+        console.error('Error sending emails:', error)
+        // Don't fail the request if email sending fails
+      }
     }
 
     res.json({ auction: data })

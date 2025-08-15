@@ -178,7 +178,8 @@ export default function CreateAuctionPage() {
               className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-black"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Enter time in your local timezone ({userTimezone})
+              Enter time in your local timezone,
+              past time works too
             </p>
           </div>
 

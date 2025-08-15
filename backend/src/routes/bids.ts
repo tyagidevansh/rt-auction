@@ -130,7 +130,8 @@ router.post('/:id/bids', async (req: Request, res: Response) => {
       })
     }
 
-    await supabase
+    // Create notifications and get the created notification data
+    const sellerNotificationResult = await supabase
       .from('notifications')
       .insert([{
         user_id: auction.seller_id,
@@ -138,9 +139,12 @@ router.post('/:id/bids', async (req: Request, res: Response) => {
         type: 'new_bid',
         message: `New bid of $${amount} placed on "${auction.title}"`
       }])
+      .select()
+      .single()
 
+    let bidderNotificationResult = null
     if (auction.highest_bidder_id && auction.highest_bidder_id !== bidder_id) {
-      await supabase
+      bidderNotificationResult = await supabase
         .from('notifications')
         .insert([{
           user_id: auction.highest_bidder_id,
@@ -148,6 +152,8 @@ router.post('/:id/bids', async (req: Request, res: Response) => {
           type: 'outbid',
           message: `You have been outbid on "${auction.title}". New highest bid: $${amount}`
         }])
+        .select()
+        .single()
     }
 
     const io = req.app.get('io')
@@ -186,6 +192,21 @@ router.post('/:id/bids', async (req: Request, res: Response) => {
       })
 
       io.to(`auction_${id}`).emit('auction_updated', updateData)
+      
+      // Emit individual notification events to specific users
+      if (sellerNotificationResult.data) {
+        io.emit('new_notification', {
+          userId: auction.seller_id,
+          notification: sellerNotificationResult.data
+        })
+      }
+      
+      if (bidderNotificationResult?.data) {
+        io.emit('new_notification', {
+          userId: auction.highest_bidder_id,
+          notification: bidderNotificationResult.data
+        })
+      }
     }
 
     res.json({ bid })

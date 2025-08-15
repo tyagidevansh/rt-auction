@@ -2,65 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { API_ENDPOINTS } from "../../lib/api";
+import { useNotifications } from "../../contexts/NotificationContext";
 import { Notification } from "../../types";
 import Link from "next/link";
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { notifications, markAsRead, refreshNotifications, unreadCount } =
+    useNotifications();
 
   useEffect(() => {
     if (user) {
-      fetchNotifications();
-      // Set up polling for real-time updates
-      const interval = setInterval(fetchNotifications, 10000);
-      return () => clearInterval(interval);
+      setLoading(false); // Use context data, no need to load separately
     }
   }, [user]);
-
-  const fetchNotifications = async () => {
-    if (!user) return;
-
-    try {
-      const response = await fetch(
-        `${API_ENDPOINTS.NOTIFICATIONS}?user_id=${user.id}`
-      );
-      const data = await response.json();
-      if (response.ok) {
-        setNotifications(data.notifications);
-      }
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const markAsRead = async (notificationIds: string[]) => {
-    try {
-      const response = await fetch(API_ENDPOINTS.NOTIFICATIONS, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ids: notificationIds }),
-      });
-
-      if (response.ok) {
-        setNotifications((prev) =>
-          prev.map((notif) =>
-            notificationIds.includes(notif.id)
-              ? { ...notif, read: true }
-              : notif
-          )
-        );
-      }
-    } catch (error) {
-      console.error("Error marking notifications as read:", error);
-    }
-  };
 
   const markAllAsRead = () => {
     const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id);
@@ -99,8 +55,6 @@ export default function NotificationsPage() {
   if (loading) {
     return <div className="text-center">Loading notifications...</div>;
   }
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <div className="max-w-4xl mx-auto">

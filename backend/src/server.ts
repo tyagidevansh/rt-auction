@@ -10,6 +10,7 @@ import authRoutes from './routes/auth'
 import auctionsRoutes from './routes/auctions'
 import bidsRoutes from './routes/bids'
 import notificationsRoutes from './routes/notifications'
+import emailRoutes from './routes/email'
 
 dotenv.config()
 
@@ -44,7 +45,6 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id)
 
-  // Test event
   socket.on('test', (message) => {
     console.log('Received test message:', message)
     socket.emit('test_response', 'Hello from server')
@@ -69,16 +69,15 @@ io.on('connection', (socket) => {
   })
 })
 
-// Make io accessible in routes
 app.set('io', io)
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-// Routes
 app.use('/api/auth', authRoutes)
 app.use('/api/auctions', auctionsRoutes)
 app.use('/api/auctions', bidsRoutes) // This handles /api/auctions/:id/bids
 app.use('/api/notifications', notificationsRoutes)
+app.use('/api/email', emailRoutes)
 
 app.get('/health', (req, res) => {
   res.json({ 

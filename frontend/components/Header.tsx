@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { useNotifications } from "../contexts/NotificationContext";
 
 export default function Header() {
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
@@ -36,9 +38,14 @@ export default function Header() {
               </Link>
               <Link
                 href="/notifications"
-                className="px-3 py-1 border border-black hover:bg-black hover:text-white transition-colors"
+                className="px-3 py-1 border border-black hover:bg-black hover:text-white transition-colors relative"
               >
                 Notifications
+                {unreadCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
               </Link>
               <button
                 onClick={logout}
@@ -113,10 +120,15 @@ export default function Header() {
                 </Link>
                 <Link
                   href="/notifications"
-                  className="block w-full text-left px-3 py-2 border border-black hover:bg-black hover:text-white transition-colors"
+                  className="block w-full text-left px-3 py-2 border border-black hover:bg-black hover:text-white transition-colors relative"
                   onClick={closeMenu}
                 >
                   Notifications
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
                 </Link>
                 <button
                   onClick={() => {

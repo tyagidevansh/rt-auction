@@ -5,6 +5,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { API_ENDPOINTS } from "../../../lib/api";
 import { Auction, Bid } from "../../../types";
 import { useSocket } from "../../../hooks/useSocket";
+import EmailStatus from "../../../components/EmailStatus";
 
 export default function AuctionPage({
   params,
@@ -18,6 +19,11 @@ export default function AuctionPage({
   const [bidLoading, setBidLoading] = useState(false);
   const [error, setError] = useState("");
   const [auctionId, setAuctionId] = useState<string>("");
+  const [emailStatus, setEmailStatus] = useState<{
+    show: boolean;
+    success: boolean;
+    message: string;
+  }>({ show: false, success: false, message: "" });
   const { user } = useAuth();
   const { joinAuction, leaveAuction, onAuctionUpdate, offAuctionUpdate } =
     useSocket();
@@ -68,7 +74,6 @@ export default function AuctionPage({
       clearInterval(timerInterval);
     };
   }, [auctionId]);
-
 
   const fetchAuctionData = async () => {
     if (!auctionId) return;
@@ -144,10 +149,32 @@ export default function AuctionPage({
       });
 
       if (response.ok) {
-        // no need to manually refresh
+        // Show email notification
+        setEmailStatus({
+          show: true,
+          success: true,
+          message: `Bid ${
+            accept ? "accepted" : "rejected"
+          } successfully! Email notifications sent.`,
+        });
+      } else {
+        setEmailStatus({
+          show: true,
+          success: false,
+          message: `Failed to ${
+            accept ? "accept" : "reject"
+          } bid. Please try again.`,
+        });
       }
     } catch (error) {
       console.error("Error updating auction:", error);
+      setEmailStatus({
+        show: true,
+        success: false,
+        message: `Network error while ${
+          accept ? "accepting" : "rejecting"
+        } bid.`,
+      });
     }
   };
 
@@ -235,6 +262,15 @@ export default function AuctionPage({
 
   return (
     <div className="max-w-4xl mx-auto">
+      <EmailStatus
+        show={emailStatus.show}
+        success={emailStatus.success}
+        message={emailStatus.message}
+        onClose={() =>
+          setEmailStatus({ show: false, success: false, message: "" })
+        }
+      />
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div>
           <h1 className="text-3xl font-bold mb-4">{auction.title}</h1>
