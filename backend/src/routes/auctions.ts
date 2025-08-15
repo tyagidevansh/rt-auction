@@ -202,6 +202,15 @@ router.patch('/:id', async (req: Request, res: Response) => {
         }])
     }
 
+    const io = req.app.get('io')
+    if (io) {
+      // emit to all clients in the auction room
+      io.to(`auction_${id}`).emit('auction_updated', {
+        auction: data,
+        statusChanged: true
+      })
+    }
+
     res.json({ auction: data })
   } catch (error) {
     console.error('Error updating auction:', error)

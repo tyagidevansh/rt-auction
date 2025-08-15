@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 
 const router = Router()
 
-// GET /api/auctions/:id/bids
 router.get('/:id/bids', async (req: Request, res: Response) => {
   try {
     const { id } = req.params
@@ -32,7 +31,6 @@ router.get('/:id/bids', async (req: Request, res: Response) => {
   }
 })
 
-// POST /api/auctions/:id/bids
 router.post('/:id/bids', async (req: Request, res: Response) => {
   try {
     const { id } = req.params
@@ -44,7 +42,6 @@ router.post('/:id/bids', async (req: Request, res: Response) => {
       })
     }
 
-    // Get current auction data
     const { data: auction, error: auctionError } = await supabase
       .from('auctions')
       .select('*')
@@ -57,12 +54,10 @@ router.post('/:id/bids', async (req: Request, res: Response) => {
       })
     }
 
-    // Update auction status based on current time
     const nowUTC = new Date().toISOString()
     let currentAuction = auction
     
     if (auction.status === 'pending' && auction.start_time <= nowUTC) {
-      // Update to active if start time has passed
       const { data: updatedAuction } = await supabase
         .from('auctions')
         .update({ status: 'active' })
@@ -71,7 +66,6 @@ router.post('/:id/bids', async (req: Request, res: Response) => {
         .single()
       currentAuction = updatedAuction || auction
     } else if (auction.status === 'active' && auction.end_time <= nowUTC) {
-      // Update to ended if end time has passed
       await supabase
         .from('auctions')
         .update({ status: 'ended' })
@@ -79,14 +73,12 @@ router.post('/:id/bids', async (req: Request, res: Response) => {
       currentAuction = { ...auction, status: 'ended' }
     }
 
-    // Check if auction is active
     if (currentAuction.status !== 'active') {
       return res.status(400).json({
         error: 'Auction is not active'
       })
     }
 
-    // Check if bid is high enough
     const minimumBid = currentAuction.current_highest_bid 
       ? currentAuction.current_highest_bid + currentAuction.bid_increment
       : currentAuction.starting_price
@@ -97,14 +89,12 @@ router.post('/:id/bids', async (req: Request, res: Response) => {
       })
     }
 
-    // Check if bidder is not the seller
     if (bidder_id === currentAuction.seller_id) {
       return res.status(400).json({
         error: 'Sellers cannot bid on their own auctions'
       })
     }
 
-    // Create the bid
     const { data: bid, error: bidError } = await supabase
       .from('bids')
       .insert([{
@@ -125,7 +115,6 @@ router.post('/:id/bids', async (req: Request, res: Response) => {
       })
     }
 
-    // Update auction with new highest bid
     const { error: updateError } = await supabase
       .from('auctions')
       .update({
@@ -141,8 +130,6 @@ router.post('/:id/bids', async (req: Request, res: Response) => {
       })
     }
 
-    // Create notifications
-    // Notify the seller
     await supabase
       .from('notifications')
       .insert([{
@@ -152,7 +139,6 @@ router.post('/:id/bids', async (req: Request, res: Response) => {
         message: `New bid of $${amount} placed on "${auction.title}"`
       }])
 
-    // Notify previous highest bidder (if exists and different from current bidder)
     if (auction.highest_bidder_id && auction.highest_bidder_id !== bidder_id) {
       await supabase
         .from('notifications')
@@ -162,6 +148,44 @@ router.post('/:id/bids', async (req: Request, res: Response) => {
           type: 'outbid',
           message: `You have been outbid on "${auction.title}". New highest bid: $${amount}`
         }])
+    }
+
+    const io = req.app.get('io')
+    if (io) {
+      const { data: updatedAuction } = await supabase
+        .from('auctions')
+        .select(`
+          *,
+          seller:users!seller_id(id, name, email),
+          highest_bidder:users!highest_bidder_id(id, name, email)
+        `)
+        .eq('id', id)
+        .single()
+
+      const { data: updatedBids } = await supabase
+        .from('bids')
+        .select(`
+          *,
+          bidder:users!bidder_id(id, name, email)
+        `)
+        .eq('auction_id', id)
+        .order('created_at', { ascending: false })
+
+      const updateData = {
+        auction: updatedAuction,
+        bids: updatedBids,
+        newBid: bid
+      }
+
+      const room = io.sockets.adapter.rooms.get(`auction_${id}`)
+      console.log(`Emitting auction_updated to auction_${id}:`, {
+        auctionTitle: updatedAuction?.title,
+        newHighestBid: updatedAuction?.current_highest_bid,
+        bidsCount: updatedBids?.length,
+        roomSize: room?.size || 0
+      })
+
+      io.to(`auction_${id}`).emit('auction_updated', updateData)
     }
 
     res.json({ bid })

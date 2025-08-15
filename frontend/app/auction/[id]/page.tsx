@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../../../contexts/AuthContext";
 import { API_ENDPOINTS } from "../../../lib/api";
 import { Auction, Bid } from "../../../types";
+import { useSocket } from "../../../hooks/useSocket";
 
 export default function AuctionPage({
   params,
@@ -18,6 +19,8 @@ export default function AuctionPage({
   const [error, setError] = useState("");
   const [auctionId, setAuctionId] = useState<string>("");
   const { user } = useAuth();
+  const { joinAuction, leaveAuction, onAuctionUpdate, offAuctionUpdate } =
+    useSocket();
 
   useEffect(() => {
     const getParams = async () => {
@@ -28,13 +31,44 @@ export default function AuctionPage({
   }, [params]);
 
   useEffect(() => {
-    if (auctionId) {
-      fetchAuctionData();
-      // Set up polling for real-time updates
-      const interval = setInterval(fetchAuctionData, 1000);
-      return () => clearInterval(interval);
-    }
+    if (!auctionId) return;
+
+    fetchAuctionData();
+
+    joinAuction(auctionId);
+
+    const handleAuctionUpdate = (data: {
+      auction?: Auction;
+      bids?: Bid[];
+      newBid?: Bid;
+      statusChanged?: boolean;
+    }) => {
+      console.log("Real-time update received:", data);
+
+      if (data.auction) {
+        setAuction(data.auction);
+      }
+
+      if (data.bids) {
+        setBids(data.bids);
+      }
+    };
+
+    onAuctionUpdate(handleAuctionUpdate);
+
+    //timer for countdown updates (this doesn't fetch data, just forces re-render)
+    const timerInterval = setInterval(() => {
+      setAuction((prev) => (prev ? { ...prev } : null));
+    }, 1000);
+
+    // Cleanup
+    return () => {
+      leaveAuction(auctionId);
+      offAuctionUpdate(handleAuctionUpdate);
+      clearInterval(timerInterval);
+    };
   }, [auctionId]);
+
 
   const fetchAuctionData = async () => {
     if (!auctionId) return;
@@ -88,7 +122,6 @@ export default function AuctionPage({
       }
 
       setBidAmount("");
-      fetchAuctionData(); // Refresh data
     } catch (error) {
       setError("Network error. Please try again.");
     } finally {
@@ -111,7 +144,7 @@ export default function AuctionPage({
       });
 
       if (response.ok) {
-        fetchAuctionData();
+        // no need to manually refresh
       }
     } catch (error) {
       console.error("Error updating auction:", error);
@@ -203,7 +236,6 @@ export default function AuctionPage({
   return (
     <div className="max-w-4xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left Column - Auction Details */}
         <div>
           <h1 className="text-3xl font-bold mb-4">{auction.title}</h1>
 
@@ -253,7 +285,6 @@ export default function AuctionPage({
             </div>
           )}
 
-          {/* Seller Actions */}
           {isUserSeller &&
             isAuctionEnded &&
             auction.current_highest_bid &&
@@ -283,7 +314,6 @@ export default function AuctionPage({
               </div>
             )}
 
-          {/* Bid Status */}
           {isAuctionEnded && auction.seller_accepted !== null && (
             <div
               className={`border p-4 mb-6 ${
@@ -304,9 +334,7 @@ export default function AuctionPage({
           )}
         </div>
 
-        {/* Right Column - Bidding & History */}
         <div>
-          {/* Bidding Form */}
           {user && !isUserSeller && !isAuctionEnded && isAuctionStarted && (
             <div className="border border-gray-300 p-4 mb-6">
               <h3 className="font-semibold mb-4">Place a Bid</h3>
@@ -370,7 +398,6 @@ export default function AuctionPage({
             </div>
           )}
 
-          {/* Bid History */}
           <div>
             <h3 className="font-semibold mb-4">
               Bid History ({bids.length} bids)
