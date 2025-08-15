@@ -17,6 +17,9 @@ export default function CreateAuctionPage() {
   const router = useRouter();
   const { user } = useAuth();
 
+  // Get user's local timezone for display
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -29,6 +32,10 @@ export default function CreateAuctionPage() {
     }
 
     try {
+      // convert local time to UTC for API
+      const localDate = new Date(startTime);
+      const utcStartTime = localDate.toISOString();
+
       const response = await fetch(API_ENDPOINTS.AUCTIONS, {
         method: "POST",
         headers: {
@@ -40,7 +47,7 @@ export default function CreateAuctionPage() {
           description,
           starting_price: parseFloat(startingPrice),
           bid_increment: parseFloat(bidIncrement),
-          start_time: startTime,
+          start_time: utcStartTime,
           duration_hours: parseInt(durationHours),
         }),
       });
@@ -170,6 +177,9 @@ export default function CreateAuctionPage() {
               min={new Date().toISOString().slice(0, 16)}
               className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-black"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Enter time in your local timezone ({userTimezone})
+            </p>
           </div>
 
           <div>

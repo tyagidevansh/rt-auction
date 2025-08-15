@@ -155,18 +155,18 @@ export default function AuctionPage({
       auction.end_time + (auction.end_time.includes("Z") ? "" : "Z")
     );
 
-    console.log("Debug times:", {
-      now: now.toISOString(),
-      nowLocal: now.toLocaleString(),
-      rawStartTime: auction.start_time,
-      startTime: startTime.toISOString(),
-      startTimeLocal: startTime.toLocaleString(),
-      rawEndTime: auction.end_time,
-      endTime: endTime.toISOString(),
-      endTimeLocal: endTime.toLocaleString(),
-      nowVsStart: now.getTime() - startTime.getTime(),
-      nowVsEnd: now.getTime() - endTime.getTime(),
-    });
+    // console.log("Debug times:", {
+    //   now: now.toISOString(),
+    //   nowLocal: now.toLocaleString(),
+    //   rawStartTime: auction.start_time,
+    //   startTime: startTime.toISOString(),
+    //   startTimeLocal: startTime.toLocaleString(),
+    //   rawEndTime: auction.end_time,
+    //   endTime: endTime.toISOString(),
+    //   endTimeLocal: endTime.toLocaleString(),
+    //   nowVsStart: now.getTime() - startTime.getTime(),
+    //   nowVsEnd: now.getTime() - endTime.getTime(),
+    // });
 
     if (now < startTime) {
       return `Auction starts at ${startTime.toLocaleString()}`;
@@ -397,7 +397,10 @@ export default function AuctionPage({
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-500">
-                          {new Date(bid.created_at).toLocaleString()}
+                          {new Date(
+                            bid.created_at +
+                              (bid.created_at.includes("Z") ? "" : "Z")
+                          ).toLocaleString()}
                         </p>
                         {index === 0 && (
                           <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">

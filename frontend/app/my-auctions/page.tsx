@@ -137,96 +137,100 @@ export default function MyAuctionsPage() {
             return (
               <div
                 key={auction.id}
-                className="border border-gray-300 p-4 relative"
+                className="border border-gray-300 p-4 relative flex flex-col h-full"
               >
-                {needsAction && (
-                  <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                    Action Required
-                  </div>
-                )}
-
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-lg">{auction.title}</h3>
-                  <span
-                    className={`text-xs px-2 py-1 rounded ${
-                      auction.status === "active"
-                        ? "bg-green-100 text-green-800"
-                        : auction.status === "pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {auction.status.toUpperCase()}
-                  </span>
-                </div>
-
-                <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                  {auction.description}
-                </p>
-
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between">
-                    <span className="text-sm">Starting price:</span>
-                    <span className="font-medium">
-                      ${auction.starting_price}
-                    </span>
-                  </div>
-
-                  {auction.current_highest_bid ? (
-                    <div className="flex justify-between">
-                      <span className="text-sm">Current bid:</span>
-                      <span className="font-bold text-green-600">
-                        ${auction.current_highest_bid}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex justify-between">
-                      <span className="text-sm">No bids yet</span>
-                      <span className="text-gray-500">-</span>
+                <div className="flex-grow">
+                  {needsAction && (
+                    <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+                      Action Required
                     </div>
                   )}
 
-                  <div className="flex justify-between">
-                    <span className="text-sm">Status:</span>
-                    <span className="text-sm font-medium">
-                      {auction.status === "pending"
-                        ? "Starts " +
-                          new Date(
-                            auction.start_time +
-                              (auction.start_time.includes("Z") ? "" : "Z")
-                          ).toLocaleString()
-                        : auction.status === "active"
-                        ? formatTimeLeft(auction.end_time)
-                        : "Ended"}
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-semibold text-lg">{auction.title}</h3>
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${
+                        auction.status === "active"
+                          ? "bg-green-100 text-green-800"
+                          : auction.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {auction.status.toUpperCase()}
                     </span>
                   </div>
-                </div>
 
-                {/* Bid Status for Ended Auctions */}
-                {isEnded && auction.current_highest_bid && (
-                  <div className="mb-4 text-sm">
-                    {auction.seller_accepted === null ? (
-                      <div className="text-orange-600 font-medium">
-                        ⚠️ Awaiting your decision on final bid
-                      </div>
-                    ) : auction.seller_accepted ? (
-                      <div className="text-green-600 font-medium">
-                        ✓ Final bid accepted
+                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                    {auction.description}
+                  </p>
+
+                  <div className="space-y-2 mb-4">
+                    <div className="flex justify-between">
+                      <span className="text-sm">Starting price:</span>
+                      <span className="font-medium">
+                        ${auction.starting_price}
+                      </span>
+                    </div>
+
+                    {auction.current_highest_bid ? (
+                      <div className="flex justify-between">
+                        <span className="text-sm">Current bid:</span>
+                        <span className="font-bold text-green-600">
+                          ${auction.current_highest_bid}
+                        </span>
                       </div>
                     ) : (
-                      <div className="text-red-600 font-medium">
-                        ✗ Final bid rejected
+                      <div className="flex justify-between">
+                        <span className="text-sm">No bids yet</span>
+                        <span className="text-gray-500">-</span>
                       </div>
                     )}
-                  </div>
-                )}
 
-                <Link
-                  href={`/auction/${auction.id}`}
-                  className="block w-full text-center bg-black text-white py-2 hover:bg-gray-800 transition-colors"
-                >
-                  {needsAction ? "Review & Decide" : "View Details"}
-                </Link>
+                    <div className="flex justify-between">
+                      <span className="text-sm">Status:</span>
+                      <span className="text-sm font-medium">
+                        {auction.status === "pending"
+                          ? "Starts " +
+                            new Date(
+                              auction.start_time +
+                                (auction.start_time.includes("Z") ? "" : "Z")
+                            ).toLocaleString()
+                          : auction.status === "active"
+                          ? formatTimeLeft(auction.end_time)
+                          : "Ended"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Bid Status for Ended Auctions */}
+                  {isEnded && auction.current_highest_bid && (
+                    <div className="mb-4 text-sm">
+                      {auction.seller_accepted === null ? (
+                        <div className="text-orange-600 font-medium">
+                          ⚠️ Awaiting your decision on final bid
+                        </div>
+                      ) : auction.seller_accepted ? (
+                        <div className="text-green-600 font-medium">
+                          ✓ Final bid accepted
+                        </div>
+                      ) : (
+                        <div className="text-red-600 font-medium">
+                          ✗ Final bid rejected
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-auto pt-2">
+                  <Link
+                    href={`/auction/${auction.id}`}
+                    className="block w-full text-center bg-black text-white py-2 hover:bg-gray-800 transition-colors"
+                  >
+                    {needsAction ? "Review & Decide" : "View Details"}
+                  </Link>
+                </div>
               </div>
             );
           })}

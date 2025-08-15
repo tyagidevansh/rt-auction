@@ -17,11 +17,17 @@ const PORT = process.env.PORT || 3001
 app.use(helmet())
 app.use(morgan('combined'))
 
+// CORS configuration - more permissive for development
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    process.env.FRONTEND_URL || 'http://localhost:3000'
+  ],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  credentials: true,
+  optionsSuccessStatus: 200 // For legacy browser support
 }
 
 app.use(cors(corsOptions))
@@ -53,8 +59,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
-  console.log(`API available at http://localhost:${PORT}`)
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
+//   console.log(`API available at http://localhost:${PORT}`)
+//   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`)
 })
 
 export default app
