@@ -26,7 +26,7 @@ RUN npm ci
 WORKDIR /app
 COPY frontend/ ./frontend/
 COPY backend/ ./backend/
-COPY .env ./
+COPY .env* ./
 
 # Build frontend
 WORKDIR /app/frontend
