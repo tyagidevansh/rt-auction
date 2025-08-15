@@ -28,9 +28,6 @@ export default function CreateAuctionPage() {
     }
 
     try {
-      // Convert local datetime to UTC for consistent server handling
-      const startTimeUTC = new Date(startTime).toISOString();
-
       const response = await fetch("/api/auctions", {
         method: "POST",
         headers: {
@@ -42,7 +39,7 @@ export default function CreateAuctionPage() {
           description,
           starting_price: parseFloat(startingPrice),
           bid_increment: parseFloat(bidIncrement),
-          start_time: startTimeUTC,
+          start_time: startTime,
           duration_hours: parseInt(durationHours),
         }),
       });
@@ -60,13 +57,6 @@ export default function CreateAuctionPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Get current local time for minimum datetime input
-  const getCurrentLocalTime = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
   };
 
   if (!user) {
@@ -176,7 +166,7 @@ export default function CreateAuctionPage() {
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
               required
-              min={getCurrentLocalTime()}
+              min={new Date().toISOString().slice(0, 16)}
               className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-black"
             />
           </div>

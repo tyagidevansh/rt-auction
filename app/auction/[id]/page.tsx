@@ -30,7 +30,7 @@ export default function AuctionPage({
     if (auctionId) {
       fetchAuctionData();
       // Set up polling for real-time updates
-      const interval = setInterval(fetchAuctionData, 3000);
+      const interval = setInterval(fetchAuctionData, 1000);
       return () => clearInterval(interval);
     }
   }, [auctionId]);
@@ -143,6 +143,41 @@ export default function AuctionPage({
     return `${seconds}s left`;
   };
 
+  const getAuctionStatus = () => {
+    if (!auction) return "Loading...";
+
+    const now = new Date();
+    const startTime = new Date(
+      auction.start_time + (auction.start_time.includes("Z") ? "" : "Z")
+    );
+    const endTime = new Date(
+      auction.end_time + (auction.end_time.includes("Z") ? "" : "Z")
+    );
+
+    console.log("Debug times:", {
+      now: now.toISOString(),
+      nowLocal: now.toLocaleString(),
+      rawStartTime: auction.start_time,
+      startTime: startTime.toISOString(),
+      startTimeLocal: startTime.toLocaleString(),
+      rawEndTime: auction.end_time,
+      endTime: endTime.toISOString(),
+      endTimeLocal: endTime.toLocaleString(),
+      nowVsStart: now.getTime() - startTime.getTime(),
+      nowVsEnd: now.getTime() - endTime.getTime(),
+    });
+
+    if (now < startTime) {
+      return `Auction starts at ${startTime.toLocaleString()}`;
+    } else if (now >= startTime && now < endTime) {
+      return formatTimeLeft(
+        auction.end_time + (auction.end_time.includes("Z") ? "" : "Z")
+      );
+    } else {
+      return "Auction Ended";
+    }
+  };
+
   if (loading) {
     return <div className="text-center">Loading auction details...</div>;
   }
@@ -151,7 +186,14 @@ export default function AuctionPage({
     return <div className="text-center">Auction not found.</div>;
   }
 
-  const isAuctionEnded = new Date(auction.end_time) <= new Date();
+  const now = new Date();
+  const isAuctionEnded =
+    new Date(auction.end_time + (auction.end_time.includes("Z") ? "" : "Z")) <=
+    now;
+  const isAuctionStarted =
+    new Date(
+      auction.start_time + (auction.start_time.includes("Z") ? "" : "Z")
+    ) <= now;
   const isUserSeller = user?.id === auction.seller_id;
   const minimumBid = auction.current_highest_bid
     ? auction.current_highest_bid + auction.bid_increment
@@ -167,11 +209,7 @@ export default function AuctionPage({
           <div className="space-y-4 mb-6">
             <div className="border-l-4 border-black pl-4">
               <p className="text-sm text-gray-600">Current Status</p>
-              <p className="text-lg font-semibold">
-                {isAuctionEnded
-                  ? "Auction Ended"
-                  : formatTimeLeft(auction.end_time)}
-              </p>
+              <p className="text-lg font-semibold">{getAuctionStatus()}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -268,7 +306,7 @@ export default function AuctionPage({
         {/* Right Column - Bidding & History */}
         <div>
           {/* Bidding Form */}
-          {user && !isUserSeller && !isAuctionEnded && (
+          {user && !isUserSeller && !isAuctionEnded && isAuctionStarted && (
             <div className="border border-gray-300 p-4 mb-6">
               <h3 className="font-semibold mb-4">Place a Bid</h3>
               {error && (
@@ -307,10 +345,18 @@ export default function AuctionPage({
             </div>
           )}
 
-          {!user && !isAuctionEnded && (
+          {!user && !isAuctionEnded && isAuctionStarted && (
             <div className="border border-gray-300 p-4 mb-6 text-center">
               <p className="text-sm text-gray-600 mb-2">
                 Please log in to place a bid
+              </p>
+            </div>
+          )}
+
+          {!isAuctionStarted && (
+            <div className="border border-gray-300 p-4 mb-6 text-center">
+              <p className="text-sm text-gray-600">
+                Auction has not started yet
               </p>
             </div>
           )}

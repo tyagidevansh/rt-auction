@@ -33,22 +33,19 @@ export default function Home() {
 
   const formatTimeLeft = (endTime: string) => {
     const now = new Date().getTime();
-    const end = new Date(endTime).getTime();
+    const end = new Date(
+      endTime + (endTime.includes("Z") ? "" : "Z")
+    ).getTime();
     const difference = end - now;
 
     if (difference <= 0) {
       return "Auction ended";
     }
 
-    const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-    const hours = Math.floor(
-      (difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-    );
+    const hours = Math.floor(difference / (1000 * 60 * 60));
     const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
 
-    if (days > 0) {
-      return `${days}d ${hours}h ${minutes}m left`;
-    } else if (hours > 0) {
+    if (hours > 0) {
       return `${hours}h ${minutes}m left`;
     }
     return `${minutes}m left`;
@@ -65,7 +62,7 @@ export default function Home() {
         {user && (
           <Link
             href="/create-auction"
-            className="bg-white text-black px-4 py-2 hover:bg-gray-800 transition-colors"
+            className="bg-black text-white px-4 py-2 hover:bg-gray-800 transition-colors"
           >
             Create New Auction
           </Link>
@@ -73,7 +70,7 @@ export default function Home() {
       </div>
 
       {!user && (
-        <div className="bg-gray-100 border text-gray-900 border-gray-300 p-4 mb-8">
+        <div className="bg-gray-100 border border-gray-300 p-4 mb-8">
           <p className="text-center">
             <Link href="/login" className="underline hover:no-underline">
               Login

@@ -39,7 +39,9 @@ export default function MyAuctionsPage() {
 
   const formatTimeLeft = (endTime: string) => {
     const now = new Date().getTime();
-    const end = new Date(endTime).getTime();
+    const end = new Date(
+      endTime + (endTime.includes("Z") ? "" : "Z")
+    ).getTime();
     const difference = end - now;
 
     if (difference <= 0) {
@@ -122,7 +124,10 @@ export default function MyAuctionsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredAuctions.map((auction) => {
-            const isEnded = new Date(auction.end_time) <= new Date();
+            const isEnded =
+              new Date(
+                auction.end_time + (auction.end_time.includes("Z") ? "" : "Z")
+              ) <= new Date();
             const needsAction =
               isEnded &&
               auction.current_highest_bid &&
@@ -185,7 +190,10 @@ export default function MyAuctionsPage() {
                     <span className="text-sm font-medium">
                       {auction.status === "pending"
                         ? "Starts " +
-                          new Date(auction.start_time).toLocaleString()
+                          new Date(
+                            auction.start_time +
+                              (auction.start_time.includes("Z") ? "" : "Z")
+                          ).toLocaleString()
                         : auction.status === "active"
                         ? formatTimeLeft(auction.end_time)
                         : "Ended"}
