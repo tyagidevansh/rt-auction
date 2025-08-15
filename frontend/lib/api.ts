@@ -1,4 +1,5 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+// Use relative URLs so requests go through the same port the user is accessing
+const API_BASE_URL = ''
 
 export const API_ENDPOINTS = {
   // Auth

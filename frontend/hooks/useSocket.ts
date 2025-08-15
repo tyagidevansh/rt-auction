@@ -1,7 +1,10 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+// Use relative URL when deployed, localhost for development
+const SOCKET_URL = process.env.NODE_ENV === 'production' 
+  ? '' 
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001')
 
 export const useSocket = () => {
   const socketRef = useRef<Socket | null>(null)

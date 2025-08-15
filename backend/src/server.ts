@@ -5,6 +5,8 @@ import morgan from 'morgan'
 import dotenv from 'dotenv'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
+import path from 'path'
+import { createProxyMiddleware } from 'http-proxy-middleware'
 
 import authRoutes from './routes/auth'
 import auctionsRoutes from './routes/auctions'
@@ -18,16 +20,38 @@ const app = express()
 const server = createServer(app)
 const PORT = process.env.PORT || 3001
 
-app.use(helmet())
+// Trust proxy for Render.com
+app.set('trust proxy', 1)
+
+// Configure helmet to be less restrictive for Next.js
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      fontSrc: ["'self'", "https:", "data:"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "ws:", "wss:"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
+}))
 app.use(morgan('combined'))
 
 // CORS configuration - more permissive for development
 const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    process.env.FRONTEND_URL || 'http://localhost:3000'
-  ],
+  origin: process.env.NODE_ENV === 'production' 
+    ? [process.env.RENDER_EXTERNAL_URL, process.env.FRONTEND_URL].filter((url): url is string => Boolean(url))
+    : [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3001',
+        process.env.FRONTEND_URL || 'http://localhost:3000'
+      ],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
   credentials: true,
@@ -73,6 +97,7 @@ app.set('io', io)
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
+// API routes
 app.use('/api/auth', authRoutes)
 app.use('/api/auctions', auctionsRoutes)
 app.use('/api/auctions', bidsRoutes) // This handles /api/auctions/:id/bids
@@ -87,9 +112,38 @@ app.get('/health', (req, res) => {
   })
 })
 
-app.use('*', (req, res) => {
-  res.status(404).json({ error: 'Route not found' })
-})
+// Proxy all non-API routes to Next.js server (port 3000)
+app.use('*', createProxyMiddleware({
+  target: 'http://localhost:3000',
+  changeOrigin: true,
+  ws: true, // Enable WebSocket proxying
+  timeout: 30000, // 30 second timeout
+  proxyTimeout: 30000,
+  router: (req: any) => {
+    // Only proxy non-API requests
+    if (req.originalUrl?.startsWith('/api/')) {
+      return undefined; // Don't proxy API requests
+    }
+    return 'http://localhost:3000';
+  },
+  onError: (err: any, req: any, res: any) => {
+    console.error('Proxy error:', err.message);
+    console.error('Request URL:', req?.originalUrl);
+    if (res && typeof res.status === 'function') {
+      // Send a simple HTML page instead of JSON for browser requests
+      res.status(503).send(`
+        <html>
+          <head><title>Service Starting</title></head>
+          <body>
+            <h1>Frontend service is starting...</h1>
+            <p>Please wait a moment and refresh the page.</p>
+            <script>setTimeout(() => location.reload(), 2000);</script>
+          </body>
+        </html>
+      `);
+    }
+  }
+}))
 
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Unhandled error:', err)
