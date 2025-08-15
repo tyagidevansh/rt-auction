@@ -1,6 +1,6 @@
 # Real-Time Auction Platform
 
-A mini real-time auction platform built with Next.js and Supabase for real-time bidding and notifications.
+A mini real-time auction platform built with Next.js, Node.js and Supabase for real-time bidding and notifications.
 
 ## Features
 
